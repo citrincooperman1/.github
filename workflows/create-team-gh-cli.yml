@@ -1,0 +1,58 @@
+name: Team Auto Management
+
+on:
+  workflow_dispatch: {}
+  repository:
+    types:
+      - created
+
+jobs:
+  manage-team:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/cli/cli:latest
+
+    env:
+      ORG: citrincooperman1
+      TEAM_NAME: "reviewers-team"
+      TEAM_MEMBERS: "civerson-citrincooperman,"   # comma-separated GitHub usernames
+      GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+    steps:
+      - name: Initialize variables
+        run: |
+          TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
+          echo "TEAM_SLUG=$TEAM_SLUG" >> $GITHUB_ENV
+
+      - name: Create team if missing
+        run: |
+          if gh api orgs/$ORG/teams/$TEAM_SLUG > /dev/null 2>&1; then
+            echo "✅ Team already exists"
+          else
+            echo "🚀 Creating team..."
+            gh api -X POST orgs/$ORG/teams \
+              -f name="$TEAM_NAME" \
+              -f permission="pull"
+          fi
+
+      - name: Add members to team
+        run: |
+          IFS=',' read -ra USERS <<< "$TEAM_MEMBERS"
+
+          for user in "${USERS[@]}"; do
+            echo "Adding $user to team..."
+            gh api -X PUT \
+              orgs/$ORG/teams/$TEAM_SLUG/memberships/$user \
+              -f role="member"
+          done
+
+      - name: Assign access to new repo
+        run: |
+          REPO_NAME="${{ github.event.repository.name }}"
+
+          echo "🆕 New repo detected: $REPO_NAME"
+
+          gh api -X PUT \
+            orgs/$ORG/teams/$TEAM_SLUG/repos/$ORG/$REPO_NAME \
+            -f permission="pull"
