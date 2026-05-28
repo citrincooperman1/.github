@@ -3,26 +3,35 @@ name: Team Auto Management
 on:
   workflow_dispatch: {}
 
-
 jobs:
   manage-team:
     runs-on: ubuntu-latest
 
-    container:
-      image: ghcr.io/cli/cli:v2.45.0
-
     env:
       ORG: citrincooperman1
       TEAM_NAME: "reviewers-team"
-      TEAM_MEMBERS: "civerson-citrincooperman"   # comma-separated GitHub usernames
+      TEAM_MEMBERS: "civerson-citrincooperman"
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
     steps:
+      # ✅ Install GitHub CLI
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install gh -y
+
+      # ✅ Authenticate
+      - name: Authenticate GitHub CLI
+        run: |
+          echo "$GH_TOKEN" | gh auth login --with-token
+
+      # ✅ Initialize variables
       - name: Initialize variables
         run: |
           TEAM_SLUG=$(echo "$TEAM_NAME" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')
           echo "TEAM_SLUG=$TEAM_SLUG" >> $GITHUB_ENV
 
+      # ✅ Create team if missing
       - name: Create team if missing
         run: |
           if gh api orgs/$ORG/teams/$TEAM_SLUG > /dev/null 2>&1; then
@@ -34,6 +43,7 @@ jobs:
               -f permission="pull"
           fi
 
+      # ✅ Add members to team
       - name: Add members to team
         run: |
           IFS=',' read -ra USERS <<< "$TEAM_MEMBERS"
@@ -43,17 +53,24 @@ jobs:
             if [ -z "$user" ]; then
               continue
             fi
+
             echo "Adding $user to team..."
             gh api -X PUT \
               orgs/$ORG/teams/$TEAM_SLUG/memberships/$user \
               -f role="member"
           done
 
-      - name: Assign access to new repo
+      # ✅ Assign access to repo (manual trigger case)
+      - name: Assign access to repo
         run: |
+          if [ -z "${{ github.event.repository.name }}" ]; then
+            echo "⚠️ No repo found in event, skipping..."
+            exit 0
+          fi
+
           REPO_NAME="${{ github.event.repository.name }}"
 
-          echo "🆕 New repo detected: $REPO_NAME"
+          echo "🆕 Repo detected: $REPO_NAME"
 
           gh api -X PUT \
             orgs/$ORG/teams/$TEAM_SLUG/repos/$ORG/$REPO_NAME \
