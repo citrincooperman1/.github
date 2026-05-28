@@ -2,9 +2,7 @@ name: Team Auto Management
 
 on:
   workflow_dispatch: {}
-  repository:
-    types:
-      - created
+
 
 jobs:
   manage-team:
@@ -16,7 +14,7 @@ jobs:
     env:
       ORG: citrincooperman1
       TEAM_NAME: "reviewers-team"
-      TEAM_MEMBERS: "civerson-citrincooperman,"   # comma-separated GitHub usernames
+      TEAM_MEMBERS: "civerson-citrincooperman"   # comma-separated GitHub usernames
       GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
     steps:
@@ -41,6 +39,10 @@ jobs:
           IFS=',' read -ra USERS <<< "$TEAM_MEMBERS"
 
           for user in "${USERS[@]}"; do
+            user=$(echo "$user" | xargs)
+            if [ -z "$user" ]; then
+              continue
+            fi
             echo "Adding $user to team..."
             gh api -X PUT \
               orgs/$ORG/teams/$TEAM_SLUG/memberships/$user \
