@@ -9,7 +9,7 @@ jobs:
     runs-on: ubuntu-latest
 
     container:
-      image: ghcr.io/cli/cli:latest
+      image: ghcr.io/cli/cli:v2.51.0
 
     env:
       ORG: citrincooperman1
