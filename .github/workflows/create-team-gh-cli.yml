@@ -65,16 +65,17 @@ jobs:
           gh api -X PUT \
             orgs/$ORG/teams/$TEAM_SLUG/repos/$ORG/$REPO_NAME \
             -f permission="pull"
-      
-      # Add all repos to this team with read only access (manual trigger case)  
+            
       - name: Add all repos to team
-        run: 
+        run: |
           echo "🔍 Fetching all repos in org..."
+
           REPOS=$(gh api orgs/$ORG/repos --paginate --jq '.[].name')
 
           for repo in $REPOS; do
             echo "Adding $repo to team..."
+
             gh api -X PUT \
               orgs/$ORG/teams/$TEAM_SLUG/repos/$ORG/$repo \
-              -f permission="pull" 
+              -f permission="pull"
           done
